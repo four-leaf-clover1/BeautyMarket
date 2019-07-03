@@ -18,6 +18,8 @@ import sys
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # print(BASE_DIR)
 
+sys.path.insert(0,os.path.join(BASE_DIR,'apps'))
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
 
@@ -39,6 +41,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'users.apps.UsersConfig',
+
+
 ]
 
 MIDDLEWARE = [
@@ -196,6 +202,9 @@ LOGGING = {
         },
     }
 }
+
+# 指定Django认证模块中的用户模型
+AUTH_USER_MODEL = 'users.User'
 
 # import logging
 # logger = logging.getLogger('django')
