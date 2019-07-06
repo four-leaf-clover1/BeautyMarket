@@ -5,6 +5,7 @@ import re
 from .models import User
 from django.contrib.auth import login
 from BeautyMarket.utils.response_code import RETCODE
+from django_redis import get_redis_connection
 # Create your views here.
 
 class RegisterView(View):
@@ -23,12 +24,12 @@ class RegisterView(View):
         password = query_dict.get("password")
         password2 = query_dict.get("password2")
         mobile = query_dict.get("mobile")
-        sms_code = query_dict.get("sms_code")
+        sms_code_client = query_dict.get("sms_code")
         allow = query_dict.get("allow")
 
         # 校验
         # if all(query_dict.dict().values()) is False:
-        if all([username, password, password2, mobile, sms_code, allow]) is False:
+        if all([username, password, password2, mobile, sms_code_client, allow]) is False:
 
             return http.HttpResponseForbidden("缺少必要参数")
         if not re.match(r"^[a-zA-Z0-9_-]{5,20}$",username):
@@ -43,7 +44,19 @@ class RegisterView(View):
         if not re.match(r"^1[3-9]\d{9}$",mobile):
 
             return http.HttpResponseForbidden("请输入正确的手机号码")
-        # TODO ： 短信验证码后期补充
+        #
+        # 创建redis连接对象
+        redis_conn = get_redis_connection("verify_code")
+        # 获取短信验证码
+        sms_code_server = redis_conn.get("sms_code_%s" % mobile)
+        # 让短信验证码只能用一次
+        redis_conn.delete("sms_code_%s" % mobile)
+        # 判断是否过期
+        if sms_code_server is None:
+            return http.HttpResponseForbidden("短信验证码过期")
+        # 判断短信验证码是否正确
+        if sms_code_client != sms_code_server.decode():
+            return http.HttpResponseForbidden("短信验证码输入错误")
 
         # 创建一个新用户
         user=User.objects.create_user(username=username,password=password,mobile=mobile)
