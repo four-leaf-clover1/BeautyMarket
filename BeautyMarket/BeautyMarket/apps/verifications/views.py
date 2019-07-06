@@ -1,12 +1,12 @@
-from django.shortcuts import render
 from django.views import View
 from BeautyMarket.libs.captcha.captcha import captcha
 from django_redis import get_redis_connection
 from django import http
 from BeautyMarket.utils.response_code import RETCODE
 from random import randint
-from BeautyMarket.libs.yuntongxun.sms import CCP
+from celery_tasks.sms.yuntongxun.sms import CCP
 from . import constants
+from celery_tasks.sms.tasks import send_sms_code
 import logging
 
 logger = logging.getLogger('django')
@@ -64,13 +64,21 @@ class SMSCodeView(View):
         # 随机生成一个6位数字来当短信验证码
         sms_code = "%06d" % randint(0,999999)
         logger.info(sms_code)
+
+        # 创建管道对象(作用:就是将多次redis指令合并到一起，一次全部执行)
+        pl = redis_conn.pipeline()
         # 把短信验证码存储到redis中以备后期注册时校验
-        redis_conn.setex("sms_code_%s" % mobile,constants.SMS_CODE_EXPIRE_REDIS,sms_code)
+        pl.setex("sms_code_%s" % mobile,constants.SMS_CODE_EXPIRE_REDIS,sms_code)
         # 发送过短信后向redis存储一个此手机号法国短信的标记
-        redis_conn.setex("send_flag_%s" % mobile,60,1)
+        pl.setex("send_flag_%s" % mobile,60,1)
+        # 执行管道
+        pl.execute()
+
 
         # 利用第三方容联云发短信
-        CCP().send_template_sms(mobile,[sms_code,5],1)
+        # CCP().send_template_sms(mobile,[sms_code,constants.SMS_CODE_EXPIRE_REDIS // 60],1)
+        send_sms_code.delay(mobile, sms_code)  # 触发异步任务,将异步任务添加到仓库
+
 
         # 响应
         return http.JsonResponse({"code":RETCODE.OK,"errmsg":"OK"})

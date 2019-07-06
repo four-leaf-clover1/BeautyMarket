@@ -1,6 +1,6 @@
 # -*- coding:utf-8 -*-
 
-from BeautyMarket.libs.yuntongxun.CCPRestSDK import REST
+from .CCPRestSDK import REST
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 
@@ -73,6 +73,6 @@ class CCP(object):
             return -1
 
 
-if __name__ == '__main__':
-    # 注意： 测试的短信模板编号为1
-    CCP().send_template_sms('15979736108', ['1130', 5], 1)
+# if __name__ == '__main__':
+#     # 注意： 测试的短信模板编号为1
+#     CCP().send_template_sms('15979736108', ['1130', 5], 1)
