@@ -6,6 +6,7 @@ from django import http
 from BeautyMarket.utils.response_code import RETCODE
 from random import randint
 from BeautyMarket.libs.yuntongxun.sms import CCP
+from . import constants
 import logging
 
 logger = logging.getLogger('django')
@@ -18,7 +19,7 @@ class ImageCodeView(View):
 
         # 创建redis连接对象
         redis_conn = get_redis_connection("verify_code")
-        redis_conn.setex(uuid,300,text)
+        redis_conn.setex(uuid,constants.IMAGE_CODE_EXPIRE_REDIS,text)
 
         return http.HttpResponse(image_bytes,content_type="image/png")
 
@@ -28,6 +29,13 @@ class SMSCodeView(View):
     # this.host + '/sms_codes/' + this.mobile + '/?image_code=' + this.image_code + '&uuid=' + this.uuid;
 
     def get(self,request,mobile):
+
+        # 创建redis连接对象
+        redis_conn = get_redis_connection("verify_code")
+        send_flag = redis_conn.get("send_flag_%s" % mobile)
+        if send_flag:
+            return http.JsonResponse({"code":RETCODE.THROTTLINGERR,"errmsg":"频繁发送短信"})
+
         # 接收前端数据
         image_code_client = request.GET.get('image_code')
         uuid = request.GET.get('uuid')
@@ -37,8 +45,7 @@ class SMSCodeView(View):
         if all([image_code_client,uuid]) is False:
             return http.HttpResponseForbidden('缺少必要参数')
 
-        # 创建redis连接对象
-        redis_conn = get_redis_connection("verify_code")
+
 
         # 获取redis中图形验证码
         image_code_server = redis_conn.get(uuid)
@@ -58,7 +65,9 @@ class SMSCodeView(View):
         sms_code = "%06d" % randint(0,999999)
         logger.info(sms_code)
         # 把短信验证码存储到redis中以备后期注册时校验
-        redis_conn.setex("sms_code_%s" % mobile,300,sms_code)
+        redis_conn.setex("sms_code_%s" % mobile,constants.SMS_CODE_EXPIRE_REDIS,sms_code)
+        # 发送过短信后向redis存储一个此手机号法国短信的标记
+        redis_conn.setex("send_flag_%s" % mobile,60,1)
 
         # 利用第三方容联云发短信
         CCP().send_template_sms(mobile,[sms_code,5],1)
