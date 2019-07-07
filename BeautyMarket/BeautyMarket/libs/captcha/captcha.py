@@ -221,3 +221,5 @@ captcha = Captcha.instance()
 
 if __name__ == '__main__':
     print(captcha.generate_captcha())
+    # print(len(captcha.generate_captcha()))
+    # print(type(captcha.generate_captcha()[1]))

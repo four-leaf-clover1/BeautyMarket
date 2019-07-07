@@ -213,6 +213,8 @@ LOGGING = {
 
 # 指定Django认证模块中的用户模型
 AUTH_USER_MODEL = 'users.User'
+AUTHENTICATION_BACKENDS = ["users.utlis.UsernameMobileAuthBackend"]
+
 
 # import logging
 # logger = logging.getLogger('django')

@@ -1,11 +1,12 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.views import View
 from django import http
 import re
 from .models import User
-from django.contrib.auth import login
+from django.contrib.auth import login, authenticate,logout,mixins
 from BeautyMarket.utils.response_code import RETCODE
 from django_redis import get_redis_connection
+from django.conf import settings
 # Create your views here.
 
 class RegisterView(View):
@@ -62,7 +63,7 @@ class RegisterView(View):
         user=User.objects.create_user(username=username,password=password,mobile=mobile)
         login(request,user)
 
-        return http.HttpResponse("注册成功，跳转到首页")
+        return redirect('/login/')
 
 
 
@@ -82,6 +83,71 @@ class MobileCountView(View):
         return http.JsonResponse({'code':RETCODE.OK,'errmsg': 'OK', 'count': count})
 
 
+class LoginView(View):
+    """登入界面"""
+    def get(self,request):
+        return render(request,"login.html")
+
+    #接收表单数据
+    def post(self,request):
+        query_dict = request.POST
+        username = query_dict.get("username")
+        password = query_dict.get("password")
+        remembered = query_dict.get("remembered")
+
+        # if re.match(r'1[3-9]\d{9}$',username):
+        #     User.USERNAME_FIELD = 'mobile'
+
+    #校验,用户认证
+        user = authenticate(request,username=username,password=password)
+        # User.USERNAME_FIELD = "username"
+        if user is None:
+            return render(request,"login.html",{'account_errmsg':"用户名密码错误"})
+    #状态保持
+        login(request,user)
+        # 如果用户没有记住登入
+        if remembered != 'on':
+            request.session.set_expiry(0)
+        # request.session.set_expiry((60*60*48) if remembered else 0)
+
+        # return http.HttpResponse("登入成功，来到首页")
+        #/login/?next=/info/
+        #/login/
+        response =  redirect(request.GET.get('next') or '/')
+        # response.set_cookie('username',user.username,max_age=settings.SESSION_COOKIE_AGE if remembered else 0)
+        response.set_cookie('username', user.username, max_age=settings.SESSION_COOKIE_AGE if remembered else None)
+
+        return response
+
+
+class LogoutView(View):
+    """退出登入"""
+
+    def get(self,request):
+
+        #消除状态保持
+        logout(request)
+        # 重定向到登入界面
+        response = redirect('/login/')
+
+        #删除cookie中的username
+        response.delete_cookie('username')
+
+        return response
+
+
+class InfoView(mixins.LoginRequiredMixin,View):
+    """用户中心"""
+    # def get(self,request):
+    #     # if isinstance(request.user,User):
+    #     if request.user.is_authenticated:
+    #
+    #         return render(request,"user_center_info.html")
+    #     else:
+    #         return redirect('/login/?next=/info/')
+
+    def get(self,request):
+        return render(request,"user_center_info.html")
 
 
 

@@ -49,6 +49,7 @@ class SMSCodeView(View):
 
         # 获取redis中图形验证码
         image_code_server = redis_conn.get(uuid)
+        # print(image_code_server)
         # 直接将redis中用过的图形验证码删除(让每个图形验证码都是一次性的）
         redis_conn.delete(uuid)
 
