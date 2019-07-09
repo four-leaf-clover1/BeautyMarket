@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.views import View
 from django import http
 import re
@@ -66,7 +67,6 @@ class RegisterView(View):
         return redirect('/login/')
 
 
-
 class UsernameCountView(View):
     """判断用户名是否重复"""
     def get(self,request,username):
@@ -128,7 +128,7 @@ class LogoutView(View):
         #消除状态保持
         logout(request)
         # 重定向到登入界面
-        response = redirect('/login/')
+        response = redirect(reverse("users:login"))
 
         #删除cookie中的username
         response.delete_cookie('username')
